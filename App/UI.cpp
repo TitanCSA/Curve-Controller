@@ -28,7 +28,7 @@ Window::Window(bool offline):offline_(offline){
     Check(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,__uuidof(IDWriteFactory),reinterpret_cast<IUnknown**>(textFactory_.GetAddressOf())));
     const float sizes[]{12,13,14,16,20,28};
     for(unsigned i=0;i<fonts_.size();++i){Check(textFactory_->CreateTextFormat(i==6?L"Consolas":L"Segoe UI",nullptr,i==4||i==5?DWRITE_FONT_WEIGHT_SEMI_BOLD:DWRITE_FONT_WEIGHT_NORMAL,DWRITE_FONT_STYLE_NORMAL,DWRITE_FONT_STRETCH_NORMAL,i==6?14:sizes[i],L"en-us",&fonts_[i]));fonts_[i]->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);}
-    if(offline_){notice_=L"Offline preview - simulated controller values";snapshot_.active=true;snapshot_.status=notice_;DeviceState d;d.name=L"DualSense Wireless Controller";d.family=L"HID";d.detail=L"Simulated preview. No driver or controller is accessed.";d.sample.valid=15;d.sample.in={0.34,-0.68,0.52,-0.21};settings_.preset=Preset::Exponential;Response r(settings_);for(unsigned i=0;i<4;++i)d.sample.out[i]=r.Map(d.sample.in[i]);snapshot_.devices.push_back(d);}
+    if(offline_){notice_=L"Offline preview - simulated controller values";snapshot_.active=true;snapshot_.status=notice_;DeviceState d;d.name=L"DualSense Wireless Controller";d.family=L"HID";d.detail=L"Simulated preview. No driver or controller is accessed.";d.sample.valid=d.sample.updated=15;d.sample.paired=3;d.sample.in={0.34,-0.68,0.52,-0.21};settings_.preset=Preset::Exponential;snapshot_.devices.push_back(d);RefreshPreview();}
     else settings_=LoadPreferences(notice_);
 }
 Window::~Window(){capture_.Stop();if(window_&&IsWindow(window_))DestroyWindow(window_);}
@@ -73,9 +73,11 @@ void Window::Draw(ID2D1RenderTarget* rt){
     label(L"No Apply button. No config file.",44,726,220,Muted,0);
     rect(D2D1::RectF(300,104,width_-24,height_-264),Surface);
     label(Wide(Info(settings_.preset).name),324,122,width_-400,White,4);
+    button(40,L"Distance from center",D2D1::RectF(width_-420,115,width_-220,153),settings_.mode==ResponseMode::Distance);
+    button(41,L"X / Y separately",D2D1::RectF(width_-208,115,width_-44,153),settings_.mode==ResponseMode::Axes);
     label(Wide(Info(settings_.preset).description),324,155,width_-400,Muted,1);
     const auto plot=Plot();const float pw=plot.right-plot.left,ph=plot.bottom-plot.top;
-    label(L"OUTPUT",324,188,90,Muted,0);
+    label(settings_.mode==ResponseMode::Distance?L"OUTPUT DISTANCE":L"OUTPUT",324,188,180,Muted,0);
     for(unsigned i=0;i<=4;++i){const float amount=i/4.f,x=plot.left+amount*pw,y=plot.bottom-amount*ph;
         line(plot.left,y,plot.right,y,Border,1,0.65f);line(x,plot.top,x,plot.bottom,Border,1,0.65f);
         label(std::to_wstring(i*25)+L"%",plot.left-49,y-8,44,Muted,0);
@@ -90,7 +92,20 @@ void Window::Draw(ID2D1RenderTarget* rt){
     }
     if(!snapshot_.devices.empty()){
         const auto& sample=snapshot_.devices[std::min<size_t>(device_,snapshot_.devices.size()-1)].sample;
-        for(unsigned i=0;i<4;++i)if(sample.valid&(1u<<i)){
+        if(settings_.mode==ResponseMode::Distance){
+            for(unsigned stick=0;stick<2;++stick)if(sample.paired&(1u<<stick)){
+                const unsigned i=stick*2,other=i^2u;
+                const double input=std::min(1.0,std::hypot(sample.in[i],sample.in[i+1])),output=std::min(1.0,std::hypot(sample.out[i],sample.out[i+1]));
+                const float x=plot.left+static_cast<float>(input)*pw,y=plot.bottom-static_cast<float>(output)*ph;
+                color(stick?White:Teal,0.8f);rt->FillEllipse({{x,y},4,4},brush.Get());
+                float labelY=y-23;
+                if(sample.paired&(1u<<(stick^1u))){
+                    const double otherIn=std::min(1.0,std::hypot(sample.in[other],sample.in[other+1])),otherOut=std::min(1.0,std::hypot(sample.out[other],sample.out[other+1]));
+                    if(std::abs(input-otherIn)*pw<50&&std::abs(output-otherOut)*ph<20)labelY=std::min(y,plot.bottom-static_cast<float>(otherOut)*ph)-23-stick*16;
+                }
+                label(L"Center",std::clamp(x-20,plot.left-20,plot.right-22),labelY,44,stick?White:Teal,0);
+            }
+        }else for(unsigned i=0;i<4;++i)if(sample.valid&(1u<<i)){
             const float x=plot.left+static_cast<float>(std::abs(sample.in[i]))*pw,y=plot.bottom-static_cast<float>(std::abs(sample.out[i]))*ph;
             color(i<2?Teal:White,0.8f);rt->FillEllipse({{x,y},4,4},brush.Get());
             const unsigned other=i^1u;
@@ -102,7 +117,7 @@ void Window::Draw(ID2D1RenderTarget* rt){
             label(i&1u?L"Y":L"X",labelX+offset,y-23,12,i<2?Teal:White,0);
         }
     }
-    label(L"PHYSICAL INPUT",plot.left+pw/2-52,plot.bottom+30,160,Muted,0);
+    label(settings_.mode==ResponseMode::Distance?L"PHYSICAL DISTANCE FROM CENTER":L"PHYSICAL AXIS INPUT",plot.left+pw/2-110,plot.bottom+30,280,Muted,0);
     const float ey=height_-303;
     if(settings_.preset==Preset::Custom){
         label(L"Point "+std::to_wstring(point_+1)+L" / 10",324,ey+2,132,White,1);
@@ -131,6 +146,13 @@ void Window::Draw(ID2D1RenderTarget* rt){
             const float bx=left+262,bw=std::max(20.f,available-272);rect(D2D1::RectF(bx,y+7,bx+bw,y+12),Elevated,2);
             if(known){const float amount=static_cast<float>(std::abs(selected->sample.out[i]));rect(D2D1::RectF(bx,y+7,bx+std::max(1.f,bw*amount),y+12),stick?Blue:Teal,2);}
         }
+        if(settings_.mode==ResponseMode::Distance){
+            const unsigned i=stick*2;const bool known=selected&&(selected->sample.paired&(1u<<stick));const float y=height_-92.f;
+            label(L"Center",left,y,64,Muted,0);
+            label(known?Number(std::min(1.0,std::hypot(selected->sample.in[i],selected->sample.in[i+1]))*100)+L"%":L"--",left+65,y,84,Muted,6);
+            label(L"->",left+152,y,30,Muted,1);
+            label(known?Number(std::min(1.0,std::hypot(selected->sample.out[i],selected->sample.out[i+1]))*100)+L"%":L"--",left+190,y,90,stick?White:Teal,6);
+        }
     }
     const float bottom=height_-44;
     color(snapshot_.active?Teal:Muted);rt->FillEllipse({{31,bottom+8},3,3},brush.Get());
@@ -139,7 +161,7 @@ void Window::Draw(ID2D1RenderTarget* rt){
     if(!notice_.empty()&&notice_.find(L"failed")!=std::wstring::npos)status=notice_;
     label(status,45,bottom,width_-300,Muted,0);
     label(offline_?L"SIMULATED PREVIEW":dirty_?L"Saving preferences...":L"Saved automatically",width_-222,bottom,200,offline_?Teal:Muted,0);
-    if(!snapshot_.active&&!offline_)button(32,L"Reconnect",D2D1::RectF(width_-155,118,width_-44,153));
+    if(!snapshot_.active&&!offline_)button(32,L"Reconnect",D2D1::RectF(width_-550,28,width_-444,66));
 }
 HWND Window::Create(bool visible){
     WNDCLASSW cls{};cls.lpfnWndProc=Procedure;cls.hInstance=GetModuleHandleW(nullptr);cls.lpszClassName=L"TitanCSA.CurveController";cls.hCursor=LoadCursorW(nullptr,IDC_ARROW);cls.hIcon=LoadIconW(nullptr,IDI_APPLICATION);RegisterClassW(&cls);
@@ -158,7 +180,7 @@ void Window::Changed(){
     if(!offline_)capture_.Update(settings_);
     dirty_=true;if(!offline_)SetTimer(window_,2,300,nullptr);
     animation_=0;animationStart_=GetTickCount64();SetTimer(window_,1,16,nullptr);InvalidateRect(window_,nullptr,FALSE);
-    if(offline_&&!snapshot_.devices.empty()){Response r(settings_);auto& s=snapshot_.devices[0].sample;for(unsigned i=0;i<4;++i)s.out[i]=(i<2?settings_.left:settings_.right)?r.Map(s.in[i]):s.in[i];}
+    if(offline_)RefreshPreview();
 }
 int Window::HitTest(float x,float y) const{for(const auto& h:hits_)if(Inside(h.box,x,y))return h.id;return -1;}
 int Window::PointAt(float x,float y) const{if(settings_.preset!=Preset::Custom)return -1;const auto p=Plot();for(unsigned i=0;i<10;++i){const float px=p.left+static_cast<float>(settings_.points[i].x)*(p.right-p.left),py=p.bottom-static_cast<float>(settings_.points[i].y)*(p.bottom-p.top);if(std::hypot(px-x,py-y)<=13)return static_cast<int>(i);}return -1;}
@@ -172,6 +194,8 @@ bool Window::CheckDriver(){
 void Window::Action(int id){
     if(id==20)settings_.left=!settings_.left;
     else if(id==21)settings_.right=!settings_.right;
+    else if(id==40)settings_.mode=ResponseMode::Distance;
+    else if(id==41)settings_.mode=ResponseMode::Axes;
     else if(id>=100&&id<112)settings_.preset=static_cast<Preset>(id-100);
     else if(id==112)settings_.preset=Preset::Custom;
     else if(id==10||id==11){ChooseFile(id==11);return;}
@@ -241,7 +265,11 @@ LRESULT Window::Message(UINT m,WPARAM w,LPARAM l){
 }
 void Window::PreviewSettings(const Settings& s){
     if(!offline_||!Valid(s))throw std::logic_error("Valid offline preview settings required");settings_=s;
-    if(!snapshot_.devices.empty()){Response r(s);auto& sample=snapshot_.devices[0].sample;for(unsigned i=0;i<4;++i)sample.out[i]=(i<2?s.left:s.right)?r.Map(sample.in[i]):sample.in[i];}
+    RefreshPreview();
+}
+void Window::RefreshPreview(){
+    if(snapshot_.devices.empty())return;Response response(settings_);auto& sample=snapshot_.devices[0].sample;
+    for(unsigned stick=0;stick<2;++stick){const unsigned i=stick*2;const auto result=(stick?settings_.right:settings_.left)?response.MapStick(sample.in[i],sample.in[i+1]):Point{sample.in[i],sample.in[i+1]};sample.out[i]=result.x;sample.out[i+1]=result.y;}
 }
 void Window::RenderPng(const std::wstring& path){
     ComPtr<IWICImagingFactory> wic;Check(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&wic)));
@@ -254,7 +282,8 @@ void Window::RenderPng(const std::wstring& path){
 }
 unsigned Window::SelfTest(){
     unsigned checks=0;auto expect=[&](bool ok){++checks;if(!ok)throw std::runtime_error("UI state check failed.");};
-    Paint();expect(hits_.size()>=19);expect(offline_);
+    Paint();expect(hits_.size()>=21);expect(offline_);expect(settings_.mode==ResponseMode::Distance);
+    Action(41);expect(settings_.mode==ResponseMode::Axes);Action(40);expect(settings_.mode==ResponseMode::Distance);
     for(unsigned i=0;i<12;++i){Action(100+static_cast<int>(i));expect(static_cast<unsigned>(settings_.preset)==i);expect(Valid(settings_));}
     Action(112);expect(settings_.preset==Preset::Custom);MovePoint(settings_,0,{0.1,0.5});expect(std::abs(Response(settings_).Map(0.1)-0.5)<1e-12);
     const bool old=settings_.left;Action(20);expect(settings_.left!=old);Action(20);expect(settings_.left==old);Action(21);expect(!settings_.right);Action(21);expect(settings_.right);

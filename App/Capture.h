@@ -9,7 +9,7 @@
 namespace Curve {
 constexpr UINT InputMessage=WM_APP+41;
 struct DeviceState {std::string token;std::wstring name,family,detail;AxisSample sample;unsigned long long reports=0;};
-struct Snapshot {bool active=false;std::wstring status=L"Connecting to the driver...",error;std::vector<DeviceState> devices;unsigned long long received=0,forwarded=0,configSends=0;DWORD errorCode=0;};
+struct Snapshot {bool active=false;std::wstring status=L"Connecting to the driver...",error;std::vector<DeviceState> devices;unsigned long long received=0,forwarded=0,configSends=0,pairSends=0;DWORD errorCode=0;};
 class Capture {
     HWND window_=nullptr;
     HANDLE wake_=nullptr;

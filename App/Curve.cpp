@@ -29,7 +29,7 @@ const PresetInfo& Info(Preset p) noexcept {
 }
 Settings::Settings() noexcept { for(unsigned i=0;i<points.size();++i)points[i]={double(i+1)/11,double(i+1)/11}; }
 bool Valid(const Settings& s) noexcept {
-    if(static_cast<unsigned>(s.preset)>=Presets().size() || static_cast<unsigned>(s.layout)>2)return false;
+    if(static_cast<unsigned>(s.preset)>=Presets().size() || static_cast<unsigned>(s.layout)>2 || static_cast<unsigned>(s.mode)>1)return false;
     double previous=0;
     for(const auto& p:s.points){
         if(!std::isfinite(p.x)||!std::isfinite(p.y)||p.x-previous<0.0001 || p.x>0.9999 || p.y<0 || p.y>1)return false;
@@ -97,8 +97,12 @@ Settings Parse(std::string_view text){
     using Json=nlohmann::json;
     if(text.empty()||text.size()>65536)throw std::invalid_argument("JSON must contain 1 to 65,536 bytes.");
     const auto j=Json::parse(text,[](int depth,Json::parse_event_t,const Json&){if(depth>12)throw std::invalid_argument("JSON nesting exceeds the settings schema.");return true;},true,false);
-    if(!j.is_object()||j.size()!=5||!j.contains("schema")||j["schema"]!=1||!j.contains("preset")||!j.contains("sticks")||!j.contains("hid_layout")||!j.contains("points"))throw std::invalid_argument("Expected a Curve Controller schema 1 settings object.");
+    if(!j.is_object()||(j.size()!=5&&j.size()!=6)||(j.size()==6&&!j.contains("mode"))||!j.contains("schema")||j["schema"]!=1||!j.contains("preset")||!j.contains("sticks")||!j.contains("hid_layout")||!j.contains("points"))throw std::invalid_argument("Expected a Curve Controller schema 1 settings object.");
     Settings s;const auto name=j.at("preset").get<std::string>();bool found=false;
+    if(j.contains("mode")){
+        const auto mode=j.at("mode").get<std::string>();
+        if(mode=="distance")s.mode=ResponseMode::Distance;else if(mode=="axes")s.mode=ResponseMode::Axes;else throw std::invalid_argument("mode must be distance or axes.");
+    }
     for(const auto& p:Presets())if(name==p.key){s.preset=p.id;found=true;break;}
     if(!found)throw std::invalid_argument("Unknown curve preset.");
     const auto& sticks=j.at("sticks");
@@ -113,7 +117,7 @@ Settings Parse(std::string_view text){
 }
 std::string Serialize(const Settings& s){
     if(!Valid(s))throw std::invalid_argument("Invalid curve settings.");
-    nlohmann::json j={{"schema",1},{"preset",Info(s.preset).key},{"sticks",{{"left",s.left},{"right",s.right}}},{"hid_layout",s.layout==HidLayout::Auto?"auto":s.layout==HidLayout::RxRy?"xy-rxry":"xy-zrz"},{"points",nlohmann::json::array()}};
+    nlohmann::json j={{"schema",1},{"preset",Info(s.preset).key},{"mode",s.mode==ResponseMode::Distance?"distance":"axes"},{"sticks",{{"left",s.left},{"right",s.right}}},{"hid_layout",s.layout==HidLayout::Auto?"auto":s.layout==HidLayout::RxRy?"xy-rxry":"xy-zrz"},{"points",nlohmann::json::array()}};
     for(const auto& p:s.points)j["points"].push_back({{"x",p.x*100},{"y",p.y*100}});
     return j.dump(2)+"\n";
 }
@@ -136,5 +140,15 @@ double Response::Map(double x) const noexcept {
     const auto i=static_cast<unsigned>(std::min<std::ptrdiff_t>(10,std::max<std::ptrdiff_t>(0,next-knots.begin()-1)));
     const auto t=(magnitude-knots[i])/(knots[i+1]-knots[i]);const auto& c=coefficients[i];
     return std::copysign(std::clamp(((c[3]*t+c[2])*t+c[1])*t+c[0],0.0,1.0),x);
+}
+Point Response::MapStick(double x,double y) const noexcept {
+    if(settings.mode==ResponseMode::Axes)return {Map(x),Map(y)};
+    // Keep neutral, linear and square-gate outer corners exactly unchanged.
+    // Inside the unit circle, change length only; never change stick direction.
+    if(settings.preset==Preset::Linear||!std::isfinite(x)||!std::isfinite(y))return {x,y};
+    const double distance=std::hypot(x,y);
+    if(distance==0||distance>=1)return {x,y};
+    const double mapped=Map(distance);
+    return {x/distance*mapped,y/distance*mapped};
 }
 } // namespace Curve

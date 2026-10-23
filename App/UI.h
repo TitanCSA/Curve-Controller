@@ -34,6 +34,7 @@ class Window {
     int PointAt(float,float) const;
     void Paint();
     void ChooseFile(bool save);
+    void RefreshPreview();
     LRESULT Message(UINT,WPARAM,LPARAM);
     static LRESULT CALLBACK Procedure(HWND,UINT,WPARAM,LPARAM);
 public:

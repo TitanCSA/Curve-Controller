@@ -9,14 +9,26 @@ namespace {
 using namespace Interceptor;
 using Payload=std::variant<Controller_Hid_Input,Controller_Xinput_Input,Controller_XinputHid_Input,Controller_GIP_Input,Controller_GIP_Raw_Input>;
 struct Cached {unsigned report=0;Payload physical;};
-struct DeviceCache {DeviceState state;HidDescriptor layout;std::vector<Cached> reports;};
+struct DeviceCache {DeviceState state;HidDescriptor layout;std::vector<Cached> reports;unsigned splitMask=0,pendingReplay=0;};
 std::wstring Wide(const char* s){if(!s||!*s)return {};const int n=MultiByteToWideChar(CP_UTF8,0,s,-1,nullptr,0);if(n<1)return L"Unknown error";std::wstring v(n,0);MultiByteToWideChar(CP_UTF8,0,s,-1,v.data(),n);v.resize(n-1);return v;}
 void Require(const Send_Result& sent,size_t expected){if(sent.error||sent.accepted!=expected)throw std::system_error(sent.error?sent.error:ERROR_WRITE_FAULT,std::system_category(),"Send_Input / incomplete forwarding");}
 template<class T> unsigned Report(const T& value){if constexpr(std::is_base_of_v<Hid_Decoded_Input,T>)return value.length?value.report[0]:0;else return 0;}
-template<class T> AxisSample Apply(T& input,const Response& r,const HidDescriptor& layout){
-    if constexpr(std::is_base_of_v<Hid_Decoded_Input,T>)return Transform(input.state,r,layout);
+template<class T> AxisSample Apply(T& input,const Response& r,const HidDescriptor& layout,const HidReportSet& reports={}){
+    if constexpr(std::is_base_of_v<Hid_Decoded_Input,T>)return Transform(input.state,r,layout,reports);
     else if constexpr(std::is_same_v<T,Controller_GIP_Raw_Input>)return Transform(input.input.state,r);
     else return Transform(input.state,r);
+}
+unsigned Sticks(unsigned axes) noexcept {return (axes&3?1u:0u)|(axes&12?2u:0u);}
+HidReportSet Reports(const DeviceCache& device){
+    HidReportSet set;
+    for(const auto& saved:device.reports)std::visit([&](const auto& source){if constexpr(std::is_base_of_v<Hid_Decoded_Input,std::decay_t<decltype(source)>>)set.Add(source.state);},saved.physical);
+    return set;
+}
+void Merge(DeviceCache& device,const AxisSample& sample){
+    auto& target=device.state.sample;
+    target.valid=(target.valid&~sample.updated)|sample.valid;
+    target.paired=(target.paired&~Sticks(sample.updated))|sample.paired;
+    for(unsigned i=0;i<4;++i)if(sample.valid&(1u<<i)){target.in[i]=sample.in[i];target.out[i]=sample.out[i];}
 }
 std::wstring Family(Device_Type type){switch(type){case Device_Type::Controller_Hid:return L"HID";case Device_Type::Controller_Xinput:return L"XUSB";case Device_Type::Controller_XinputHid:return L"XInputHID";default:return L"GIP";}}
 }
@@ -33,6 +45,17 @@ void Capture::Run() noexcept {
     auto publish=[&](const wchar_t* status,bool active,const std::wstring& error=L"",DWORD code=0){
         {std::lock_guard<std::mutex> lock(mutex_);snapshot_.active=active;snapshot_.status=status;snapshot_.error=error;snapshot_.errorCode=code;snapshot_.devices.clear();for(const auto& d:devices){snapshot_.devices.push_back(d.state);if(!active)snapshot_.devices.back().sample.valid=0;}}Notify();
     };
+    auto replay=[&](DeviceCache& device,const Response& response,bool configuration){
+        const auto reports=Reports(device);const auto affected=device.pendingReplay;
+        for(const auto& saved:device.reports)std::visit([&](const auto& source){
+            auto edited=source;const auto sample=Apply(edited,response,device.layout,reports);
+            if(sample.valid&&(configuration||(Sticks(sample.updated)&affected))){
+                Require(Send_Input(edited),1);Merge(device,sample);
+                std::lock_guard<std::mutex> lock(mutex_);if(configuration)++snapshot_.configSends;else ++snapshot_.pairSends;
+            }
+        },saved.physical);
+        device.pendingReplay=0;
+    };
     while(!stopping_){
     devices.clear();applied.reset();
     try{
@@ -46,10 +69,7 @@ void Capture::Run() noexcept {
         while(!stopping_){
             auto current=std::atomic_load(&response_);
             if(applied && current!=applied){
-                for(auto& d:devices)for(auto& saved:d.reports)std::visit([&](const auto& source){
-                    auto edited=source;const auto sample=Apply(edited,*current,d.layout);
-                    if(sample.valid){Require(Send_Input(edited),1);for(unsigned i=0;i<4;++i)if(sample.valid&(1u<<i)){d.state.sample.in[i]=sample.in[i];d.state.sample.out[i]=sample.out[i];d.state.sample.valid|=1u<<i;}std::lock_guard<std::mutex> lock(mutex_);++snapshot_.configSends;}
-                },saved.physical);
+                for(auto& d:devices)replay(d,*current,true);
                 publish(L"Live - settings take effect immediately",true);
             }
             applied=current;
@@ -75,9 +95,15 @@ void Capture::Run() noexcept {
                         if(saved==device.reports.end()&&device.reports.size()<32){device.reports.push_back({id,Payload(input)});saved=device.reports.end()-1;}
                         else if(saved!=device.reports.end())saved->physical=input;
                         if constexpr(std::is_base_of_v<Hid_Decoded_Input,T>)if(saved!=device.reports.end())NeutralRelative(std::get<T>(saved->physical).state);
-                        const auto sample=Apply(input,*current,device.layout);
-                        for(unsigned i=0;i<4;++i)if(sample.valid&(1u<<i)){device.state.sample.in[i]=sample.in[i];device.state.sample.out[i]=sample.out[i];device.state.sample.valid|=1u<<i;}
-                        if constexpr(std::is_base_of_v<Hid_Decoded_Input,T>){if(input.decode_error)device.state.detail=L"Unsupported HID report forwarded unchanged";else if(!sample.valid)device.state.detail=L"No stick axes in this report; check HID layout if needed";else device.state.detail=L"Descriptor-based axes; buttons and triggers preserved";}
+                        const auto sample=[&]{if constexpr(std::is_base_of_v<Hid_Decoded_Input,T>)return Apply(input,*current,device.layout,Reports(device));else return Apply(input,*current,device.layout);}();Merge(device,sample);
+                        if constexpr(std::is_base_of_v<Hid_Decoded_Input,T>){
+                            device.splitMask|=sample.split;
+                            if(current->settings.mode==ResponseMode::Distance&&current->settings.preset!=Preset::Linear)
+                                device.pendingReplay|=Sticks(sample.updated)&device.splitMask&((current->settings.left?1u:0u)|(current->settings.right?2u:0u));
+                            if(input.decode_error)device.state.detail=L"Unsupported HID report forwarded unchanged";else if(!sample.valid)device.state.detail=L"No stick axes in this report; check HID layout if needed";
+                            else if(current->settings.mode==ResponseMode::Distance&&!sample.paired)device.state.detail=L"Waiting for an unambiguous X/Y pair; input forwarded unchanged";
+                            else device.state.detail=L"Descriptor-based stick pairs; buttons and triggers preserved";
+                        }
                         else device.state.detail=L"Native stick values; buttons, triggers and protocol data preserved";
                         ++device.state.reports;
                     };
@@ -89,6 +115,9 @@ void Capture::Run() noexcept {
                 }
                 if(!batch.empty()){
                     Require(Send_Input(batch),batch.size());
+                    // Radial output couples X and Y. For split HID reports,
+                    // refresh their latest cached counterparts after the batch.
+                    for(auto& device:devices)if(device.pendingReplay)replay(device,*current,false);
                     {std::lock_guard<std::mutex> lock(mutex_);snapshot_.received+=batch.size();snapshot_.forwarded+=batch.size();}
                     publish(L"Live - low-level controller response",true);
                 }else if(prime)publish(L"Live - move a stick to inspect its response",true);

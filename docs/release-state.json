@@ -1,6 +1,6 @@
 {
     "Schema":  1,
-    "Version":  "1.0.3",
+    "Version":  "1.1.0",
     "Driver":  "Interceptor-Gamepad-Controller",
     "DriverVersion":  "1.0.12.0",
     "DriverRelease":  "v1.0.12.0-demo",
@@ -9,5 +9,6 @@
     "TrialSeconds":  3600,
     "ClockRequired":  true,
     "InstallerBundled":  true,
-    "InstallerSHA256":  "949ea2cd7d1b624ba6f9a830c1b95f77356d523cf9bf2fd86408a5888f8384c2"
+    "InstallerSHA256":  "949ea2cd7d1b624ba6f9a830c1b95f77356d523cf9bf2fd86408a5888f8384c2",
+    "DefaultResponseMode":  "distance"
 }

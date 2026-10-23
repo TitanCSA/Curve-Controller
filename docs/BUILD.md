@@ -32,7 +32,7 @@ Offline preview, JSON checks, self-tests and screenshot rendering do not elevate
 
 | Path | Role |
 | --- | --- |
-| `App/Curve.*` | Preset functions and compiled custom cubic response |
+| `App/Curve.*` | Presets, compiled custom response and direction-preserving stick mapping |
 | `App/Transform.*` | Precise native/HID stick transformation and descriptor mapping |
 | `App/Capture.*` | Automatic SDK context, event-driven receive/forward, live settings replay |
 | `App/Storage.*` | Windows registry preferences and explicit JSON import/export |
@@ -47,6 +47,19 @@ reports allow a held stick to update without waiting for another physical moveme
 relative scalar fields are neutralized before reuse. Input is forwarded before
 snapshot publication. The UI has at most one pending input notification and reads
 the latest snapshot before painting, without interpolating measured values.
+
+Distance mode maps the length of each X/Y vector and preserves its direction;
+separate-axis mode maps the two components independently. Neutral and linear
+responses remain unchanged. Mode changes wake the same worker and replay the
+latest physical reports, so a held stick updates without a new source movement.
+
+For HID, stick components must have unambiguous usages in the same collection
+and array element. Cached physical reports supply counterparts split across
+report IDs. Only those split pairs need additional counterpart sends after a
+received batch; ordinary complete-stick reports keep the existing forwarding
+path. Cached relative controls are neutralized, and transformed output is never
+fed back into the physical cache. Missing, null or ambiguous pairs are not
+invented or combined across unrelated fields.
 
 No model-specific VID/PID table or virtual-controller dependency is used. HID
 mapping is based on standard usages and descriptor metadata, with an explicit
