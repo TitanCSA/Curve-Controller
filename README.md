@@ -101,6 +101,8 @@ the most recently observed matching component.
 The live panel shows received physical values and the representable transformed
 values accepted for forwarding by the driver. It is not an independent measurement
 that a particular game consumed the report. No input yet is shown as `--`.
+The graph's live markers have small **X** and **Y** labels in the same color as
+their joystick's points.
 Windows, device firmware, connection type and game processing still affect delivery.
 
 The capture loop is event driven: no FPS cap, fixed sleep or UI animation delay

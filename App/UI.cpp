@@ -93,6 +93,12 @@ void Window::Draw(ID2D1RenderTarget* rt){
         for(unsigned i=0;i<4;++i)if(sample.valid&(1u<<i)){
             const float x=plot.left+static_cast<float>(std::abs(sample.in[i]))*pw,y=plot.bottom-static_cast<float>(std::abs(sample.out[i]))*ph;
             color(i<2?Teal:White,0.8f);rt->FillEllipse({{x,y},4,4},brush.Get());
+            const unsigned other=i^1u;
+            const bool together=(sample.valid&(1u<<other))&&
+                std::abs(std::abs(sample.in[i])-std::abs(sample.in[other]))*pw<16&&
+                std::abs(std::abs(sample.out[i])-std::abs(sample.out[other]))*ph<20;
+            const float offset=together?(i&1u?3.f:-12.f):-4.f;
+            label(i&1u?L"Y":L"X",x+offset,y-23,12,i<2?Teal:White,0);
         }
     }
     label(L"PHYSICAL INPUT",plot.left+pw/2-52,plot.bottom+30,160,Muted,0);
