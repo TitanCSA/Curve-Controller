@@ -104,10 +104,7 @@ The app source is MIT licensed. Driver source is not included; its binaries have
 The driver's demo allowance is shared across applications of that edition and
 starts when capture or controller monitoring begins. Closing or reinstalling
 does not renew it. At expiry, remapping stops and physical input passes through;
-use **Windows Restart** for a new allowance. The new **one-hour** driver packages
-are awaiting their Microsoft-signed return; the previously published signed driver
-still has its original two-hour allowance until it is replaced. Curve Controller
-uses the installed driver's actual policy. For the unrestricted driver, DM
+use **Windows Restart** for a new allowance. Install the current Microsoft-signed **one-hour** driver package (kernel **1.0.12.0**). Restart Windows after upgrading from an older demo clock. Curve Controller uses the installed driver's actual policy. For the unrestricted driver, DM
 **`titancsa`** on Discord.
 
 Inspired by [GamePad Remapper](https://github.com/TitanCSA/GamePad-Remapper), a more
