@@ -15,7 +15,7 @@ class Window {
     Settings settings_;
     Snapshot snapshot_;
     Capture capture_;
-    std::wstring notice_;
+    std::wstring notice_,driverProblem_;
     bool offline_=false,editing_=false,dirty_=false,dragging_=false;
     unsigned point_=0,device_=0;
     int hover_=-1,focus_=-1;
@@ -29,6 +29,7 @@ class Window {
     void Editors();
     void LayoutEdits();
     void Action(int);
+    bool CheckDriver();
     int HitTest(float,float) const;
     int PointAt(float,float) const;
     void Paint();

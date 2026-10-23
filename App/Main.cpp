@@ -1,5 +1,6 @@
 #include "UI.h"
 #include "Storage.h"
+#include "DriverSetup.h"
 #include <shellapi.h>
 #include <fstream>
 #include <iostream>
@@ -9,6 +10,7 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
     std::wstring mode=argc>1?argv[1]:L"",path=argc>2?argv[2]:L"",preview=argc>3?argv[3]:L"";LocalFree(argv);
     const bool offline=mode==L"--demo"||mode==L"--render"||mode==L"--self-test"||mode==L"--check-json";
     try{
+        if(mode==L"--check-driver"){DriverSetup::WriteReport(path);return 0;}
         if(mode==L"--check-json"){Curve::Parse(Curve::ReadJson(path));return 0;}
         if(!mode.empty()&&!offline)throw std::runtime_error("Unknown argument.");
         if(!offline){

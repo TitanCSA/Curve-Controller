@@ -1,5 +1,6 @@
 #include "UI.h"
 #include "Storage.h"
+#include "DriverSetup.h"
 #include <Windowsx.h>
 #include <shobjidl.h>
 #include <shellapi.h>
@@ -50,6 +51,7 @@ void Window::Draw(ID2D1RenderTarget* rt){
     rect(D2D1::RectF(26,24,66,64),Blue,12);label(L"C",36,25,25,White,5);
     label(L"Curve Controller",82,19,350,White,5);label(L"Joystick response, without extra steps.",84,55,490,Muted,1);
     if(offline_)label(L"OFFLINE PREVIEW",width_-670,35,180,Teal,1);
+    else if(!driverProblem_.empty())label(driverProblem_,310,119,width_-490,Teal,1);
     button(10,L"Import JSON",D2D1::RectF(width_-432,28,width_-308,66));
     button(11,L"Export JSON",D2D1::RectF(width_-296,28,width_-172,66));
     button(12,L"Driver setup",D2D1::RectF(width_-160,28,width_-24,66));
@@ -126,6 +128,7 @@ void Window::Draw(ID2D1RenderTarget* rt){
     const float bottom=height_-44;
     color(snapshot_.active?Teal:Muted);rt->FillEllipse({{31,bottom+8},3,3},brush.Get());
     std::wstring status=snapshot_.error.empty()?snapshot_.status:snapshot_.error;
+    if(!driverProblem_.empty())status=driverProblem_+L". Use Driver setup, then Reconnect or reopen this app.";
     if(!notice_.empty()&&notice_.find(L"failed")!=std::wstring::npos)status=notice_;
     label(status,45,bottom,width_-300,Muted,0);
     label(offline_?L"SIMULATED PREVIEW":dirty_?L"Saving preferences...":L"Saved automatically",width_-222,bottom,200,offline_?Teal:Muted,0);
@@ -138,7 +141,7 @@ HWND Window::Create(bool visible){
     window_=CreateWindowExW(0,cls.lpszClassName,L"Curve Controller",WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,r.right-r.left,r.bottom-r.top,nullptr,nullptr,cls.hInstance,this);
     if(!window_)throw std::system_error(GetLastError(),std::system_category(),"Create main window");
     if(!offline_){editX_=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|ES_AUTOHSCROLL|WS_TABSTOP,0,0,0,0,window_,reinterpret_cast<HMENU>(501),cls.hInstance,nullptr);editY_=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|ES_AUTOHSCROLL|WS_TABSTOP,0,0,0,0,window_,reinterpret_cast<HMENU>(502),cls.hInstance,nullptr);SendMessageW(editX_,EM_LIMITTEXT,8,0);SendMessageW(editY_,EM_LIMITTEXT,8,0);LayoutEdits();Editors();}
-    if(visible){ShowWindow(window_,SW_SHOW);UpdateWindow(window_);if(!offline_)capture_.Start(window_,settings_);}
+    if(visible){ShowWindow(window_,SW_SHOW);UpdateWindow(window_);if(!offline_&&CheckDriver())capture_.Start(window_,settings_);}
     return window_;
 }
 void Window::LayoutEdits(){if(!editX_)return;const auto scale=dpi_/96;const int y=static_cast<int>((height_-299)*scale),h=static_cast<int>(25*scale);MoveWindow(editX_,static_cast<int>(517*scale),y,static_cast<int>(58*scale),h,TRUE);MoveWindow(editY_,static_cast<int>(699*scale),y,static_cast<int>(57*scale),h,TRUE);ShowWindow(editX_,settings_.preset==Preset::Custom?SW_SHOW:SW_HIDE);ShowWindow(editY_,settings_.preset==Preset::Custom?SW_SHOW:SW_HIDE);}
@@ -152,6 +155,13 @@ void Window::Changed(){
 }
 int Window::HitTest(float x,float y) const{for(const auto& h:hits_)if(Inside(h.box,x,y))return h.id;return -1;}
 int Window::PointAt(float x,float y) const{if(settings_.preset!=Preset::Custom)return -1;const auto p=Plot();for(unsigned i=0;i<10;++i){const float px=p.left+static_cast<float>(settings_.points[i].x)*(p.right-p.left),py=p.bottom-static_cast<float>(settings_.points[i].y)*(p.bottom-p.top);if(std::hypot(px-x,py-y)<=13)return static_cast<int>(i);}return -1;}
+bool Window::CheckDriver(){
+    const auto driver=DriverSetup::Inspect();
+    driverProblem_=driver.Available()?L"":driver.title;
+    InvalidateRect(window_,nullptr,FALSE);
+    if(!driver.Available())DriverSetup::Prompt(window_,driver);
+    return driver.Available();
+}
 void Window::Action(int id){
     if(id==20)settings_.left=!settings_.left;
     else if(id==21)settings_.right=!settings_.right;
@@ -159,18 +169,14 @@ void Window::Action(int id){
     else if(id==112)settings_.preset=Preset::Custom;
     else if(id==10||id==11){ChooseFile(id==11);return;}
     else if(id==12){
-        wchar_t module[32768]{};GetModuleFileNameW(nullptr,module,32768);std::wstring path=module;path=path.substr(0,path.find_last_of(L"\\/")+1)+L"InterceptorSetup.exe";
-        if(GetFileAttributesW(path.c_str())!=INVALID_FILE_ATTRIBUTES){
-            DWORD dummy=0,size=GetFileVersionInfoSizeW(path.c_str(),&dummy);std::vector<BYTE> version(size);LPVOID product=nullptr;UINT length=0;
-            if(!size||!GetFileVersionInfoW(path.c_str(),0,size,version.data())||!VerQueryValueW(version.data(),L"\\StringFileInfo\\040904b0\\ProductName",&product,&length)||!product||std::wstring(static_cast<const wchar_t*>(product))!=L"InterceptorGamepadController")throw std::runtime_error("The adjacent installer is not the Gamepad & Controller edition.");
-            ShellExecuteW(window_,L"open",path.c_str(),nullptr,nullptr,SW_SHOWNORMAL);
-        }else ShellExecuteW(window_,L"open",L"https://github.com/TitanCSA/Interceptor-Gamepad-Controller/releases/latest",nullptr,nullptr,SW_SHOWNORMAL);
+        capture_.Stop();
+        DriverSetup::OpenInstaller(window_);
         return;
     }else if(id==30){
         HMENU menu=CreatePopupMenu();AppendMenuW(menu,MF_STRING|(settings_.layout==HidLayout::Auto?MF_CHECKED:0),1,L"Automatic (descriptor based)");AppendMenuW(menu,MF_STRING|(settings_.layout==HidLayout::RxRy?MF_CHECKED:0),2,L"Left X/Y - Right Rx/Ry");AppendMenuW(menu,MF_STRING|(settings_.layout==HidLayout::ZRz?MF_CHECKED:0),3,L"Left X/Y - Right Z/Rz");POINT p{43,686};p.x=static_cast<LONG>(p.x*dpi_/96);p.y=static_cast<LONG>(p.y*dpi_/96);ClientToScreen(window_,&p);const auto item=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_LEFTALIGN,p.x,p.y,0,window_,nullptr);DestroyMenu(menu);if(!item)return;settings_.layout=static_cast<HidLayout>(item-1);
     }else if(id==31){
         if(snapshot_.devices.empty())return;HMENU menu=CreatePopupMenu();for(unsigned i=0;i<snapshot_.devices.size();++i)AppendMenuW(menu,MF_STRING|(i==device_?MF_CHECKED:0),i+1,(snapshot_.devices[i].name+L" / "+snapshot_.devices[i].family).c_str());POINT p{static_cast<LONG>((width_-470)*dpi_/96),static_cast<LONG>((height_-197)*dpi_/96)};ClientToScreen(window_,&p);const auto item=TrackPopupMenu(menu,TPM_RETURNCMD,p.x,p.y,0,window_,nullptr);DestroyMenu(menu);if(item)device_=item-1;InvalidateRect(window_,nullptr,FALSE);return;
-    }else if(id==32){capture_.Stop();capture_.Start(window_,settings_);return;}
+    }else if(id==32){capture_.Stop();if(CheckDriver())capture_.Start(window_,settings_);return;}
     else return;
     Editors();Changed();
 }

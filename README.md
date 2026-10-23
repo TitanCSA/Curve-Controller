@@ -6,20 +6,28 @@ interface, and low-level remapping through the
 [Interceptor Gamepad & Controller kernel filter driver](https://github.com/TitanCSA/Interceptor-Gamepad-Controller).
 
 **[Download](https://github.com/TitanCSA/Curve-Controller/releases/latest)** |
-[Driver setup](https://github.com/TitanCSA/Interceptor-Gamepad-Controller/releases/latest) |
+[Driver setup](https://github.com/TitanCSA/Curve-Controller/releases/latest/download/InterceptorSetup.exe) |
 [Build from source](docs/BUILD.md) | [JSON examples](Examples)
 
 ![Curve Controller with simulated stick readings](docs/images/curve-controller.png)
 
 The screenshot is an explicitly simulated preview, not a physical-device test.
 
-## Start in three steps
+## Install and start
 
-1. Install the **Gamepad & Controller edition** of Interceptor using its
-   `InterceptorSetup.exe`. Restart Windows when requested and finish setup.
-2. Extract Curve Controller and open **CurveController.exe**. Accept elevation;
-   capture starts automatically. Close other controller capture/remapping apps.
-3. Check **Left joystick**, **Right joystick**, or both, and choose a preset.
+1. Download the **Windows x64 ZIP** from [Releases](https://github.com/TitanCSA/Curve-Controller/releases/latest)
+   and **extract all files**. It includes `CurveController.exe` and the matching
+   **Gamepad & Controller** `InterceptorSetup.exe` (signed driver **1.0.12.0**).
+2. Connect your controllers and close other capture/remapping apps. Run
+   **InterceptorSetup.exe**, accept elevation and click **Install / reinstall**.
+   If the combined Interceptor edition is installed, uninstall it first.
+3. If setup requests it, use Windows **Restart**, then reopen **InterceptorSetup.exe**
+   to finish pending device associations. Follow any further restart request until
+   setup reports that the driver is running and its API responds.
+4. Open **CurveController.exe** and accept elevation. It checks the driver before
+   starting capture. If the driver is absent or unavailable, a dialog offers
+   **Open driver setup** or **Continue without driver**.
+5. Check **Left joystick**, **Right joystick**, or both, and choose a preset.
    Changes are immediate, including when a previously observed stick is held still.
 
 There is no Apply button. Unchecked sticks, buttons, triggers, hats and other
@@ -28,9 +36,14 @@ compatible captured controllers; the device menu selects only the live preview.
 Closing the app releases capture and restores physical passthrough. A failed
 connection is retried automatically; **Reconnect** is also available.
 
-The driver is downloaded separately so this project never silently installs a
-driver or bundles an older installer. **Driver setup** opens the driver's latest
-release, or a verified Gamepad & Controller installer placed beside the app.
+**Driver setup** opens the verified installer beside the app; opening the app never
+installs a driver silently. The same [InterceptorSetup.exe](https://github.com/TitanCSA/Curve-Controller/releases/latest/download/InterceptorSetup.exe)
+is a separate release download. If you choose only the standalone app EXE, put
+this setup beside it; otherwise **Driver setup** opens the driver download in your
+browser. An altered installer or another edition is rejected by its SHA-256 hash.
+After setup finishes without a restart, choose **Reconnect** or reopen the app.
+Without the driver you can still edit curves and import/export settings; physical
+input remapping needs the installed driver. [Remove the driver](https://github.com/TitanCSA/Interceptor-Gamepad-Controller/blob/main/docs/INSTALLATION.md).
 
 ## Find your response
 
