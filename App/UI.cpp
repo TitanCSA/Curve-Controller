@@ -98,7 +98,8 @@ void Window::Draw(ID2D1RenderTarget* rt){
                 std::abs(std::abs(sample.in[i])-std::abs(sample.in[other]))*pw<16&&
                 std::abs(std::abs(sample.out[i])-std::abs(sample.out[other]))*ph<20;
             const float offset=together?(i&1u?3.f:-12.f):-4.f;
-            label(i&1u?L"Y":L"X",x+offset,y-23,12,i<2?Teal:White,0);
+            const float labelX=together?plot.left+static_cast<float>((std::abs(sample.in[i])+std::abs(sample.in[other]))*0.5)*pw:x;
+            label(i&1u?L"Y":L"X",labelX+offset,y-23,12,i<2?Teal:White,0);
         }
     }
     label(L"PHYSICAL INPUT",plot.left+pw/2-52,plot.bottom+30,160,Muted,0);
