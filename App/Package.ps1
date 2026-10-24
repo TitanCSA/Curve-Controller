@@ -4,7 +4,7 @@ $DriverInstaller=& (Join-Path $PSScriptRoot 'PackageDriver.ps1') -DriverInstalle
 $root=Split-Path $PSScriptRoot -Parent
 $exe=Join-Path $root 'App\.build\Release\bin\CurveController.exe'
 if(!(Test-Path -LiteralPath $exe)){throw 'Build the ordinary Release executable first.'}
-if((Get-Item -LiteralPath $exe).VersionInfo.FileVersion -cne '1.1.0'){throw 'Unexpected app version.'}
+if((Get-Item -LiteralPath $exe).VersionInfo.FileVersion -cne '1.1.1'){throw 'Unexpected app version.'}
 $binary=[IO.File]::ReadAllBytes($exe)
 if([Text.Encoding]::ASCII.GetString($binary).IndexOf('clang_rt.asan',[StringComparison]::OrdinalIgnoreCase)-ge 0){throw 'Do not distribute an AddressSanitizer executable.'}
 $pe=[BitConverter]::ToInt32($binary,0x3c)
@@ -21,7 +21,7 @@ Copy-Item -LiteralPath (Join-Path $root 'App\ThirdParty\json.LICENSE.MIT') -Dest
 foreach($name in 'Examples','docs'){Copy-Item -LiteralPath (Join-Path $root $name) -Destination $stage -Recurse}
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$zipPath=Join-Path $dist 'Curve-Controller-1.1.0-Windows-x64.zip'
+$zipPath=Join-Path $dist 'Curve-Controller-1.1.1-Windows-x64.zip'
 $file=[IO.File]::Open($zipPath,[IO.FileMode]::Create)
 try{$zip=[IO.Compression.ZipArchive]::new($file,[IO.Compression.ZipArchiveMode]::Create,$true);try{foreach($item in Get-ChildItem -LiteralPath $stage -Recurse -File){[void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,$item.FullName,$item.FullName.Substring($stage.Length+1).Replace('\','/'),[IO.Compression.CompressionLevel]::Optimal)}}finally{$zip.Dispose()}}finally{$file.Dispose()}
 Copy-Item -LiteralPath $exe -Destination $dist -Force

@@ -18,7 +18,7 @@ The screenshot is an explicitly simulated preview, not a physical-device test.
 
 1. Download the **Windows x64 ZIP** from [Releases](https://github.com/TitanCSA/Curve-Controller/releases/latest)
    and **extract all files**. It includes `CurveController.exe` and the matching
-   **Gamepad & Controller** `InterceptorSetup.exe` (signed driver **1.0.12.0**).
+   **Gamepad & Controller** `InterceptorSetup.exe` (signed driver **1.0.13.0**).
 2. Connect your controllers and close other capture/remapping apps. Run
    **InterceptorSetup.exe**, accept elevation and click **Install / reinstall**.
    If the combined Interceptor edition is installed, uninstall it first.
@@ -135,7 +135,7 @@ The app source is MIT licensed. Driver source is not included; its binaries have
 The driver's demo allowance is shared across applications of that edition and
 starts when capture or controller monitoring begins. Closing or reinstalling
 does not renew it. At expiry, remapping stops and physical input passes through;
-use **Windows Restart** for a new allowance. Install the current Microsoft-signed **one-hour** driver package (kernel **1.0.12.0**). Restart Windows after upgrading from an older demo clock. Curve Controller uses the installed driver's actual policy. For the unrestricted driver, DM
+use **Windows Restart** for a new allowance. Install the current Microsoft-signed **one-hour** driver package (kernel **1.0.13.0**). Restart Windows after upgrading from an older demo clock. Curve Controller uses the installed driver's actual policy. For the unrestricted driver, DM
 **`titancsa`** on Discord.
 
 Inspired by [GamePad Remapper](https://github.com/TitanCSA/GamePad-Remapper), a more
