@@ -6,6 +6,17 @@ X/Y response and a **ten-point custom curve editor**. Native C++17, a compact
 interface, and low-level remapping through the
 [Interceptor Gamepad & Controller kernel filter driver](https://github.com/TitanCSA/Interceptor-Gamepad-Controller).
 
+<!-- full-version-contact:start -->
+> [!IMPORTANT]
+> **Get the full driver version without demo restrictions**
+>
+> **Discord username: `titancsa`**
+>
+> Open Discord, choose **Friends > Add Friend**, enter **`titancsa`**, then send a direct message. Ask for the **full driver version without the demo time limit**, and mention **Curve Controller**.
+>
+> The demo limit belongs to **Interceptor Gamepad & Controller**, the driver used by this project. Ask for pricing and the appropriate license / activation instructions; the application or wrapper source keeps its existing license.
+<!-- full-version-contact:end -->
+
 **[Download](https://github.com/TitanCSA/Curve-Controller/releases/latest)** |
 [Driver setup](https://github.com/TitanCSA/Curve-Controller/releases/latest/download/InterceptorSetup.exe) |
 [Build from source](docs/BUILD.md) | [JSON examples](Examples)
