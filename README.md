@@ -1,5 +1,11 @@
 # Curve Controller - Real-Time Gamepad Joystick Response Curves
 
+The matching Interceptor-Gamepad-Controller demo driver source is available; see
+[driver/README.md](driver/README.md) for build instructions and separate
+evaluation-source terms. Those terms apply to Titan-authored driver code. Third-party
+source licenses and existing application/SDK licenses remain applicable. Full/commercial
+implementation and private signing or activation material are excluded.
+
 Change how your **left stick, right stick, or both** respond on Windows, with
 instant presets, **distance-from-center response by default**, optional separate
 X/Y response and a **ten-point custom curve editor**. Native C++17, a compact
@@ -140,7 +146,7 @@ compatibility with every device. [Validation scope](docs/VALIDATION.md).
 ## Driver demo and project status
 
 This is an **example of using Interceptor Gamepad & Controller and its C++ SDK**.
-The app source is MIT licensed. Driver source is not included; its binaries have
+The app source is MIT licensed. Demo/evaluation driver source is documented in [driver/README.md](driver/README.md); its binaries have
 [separate terms](DRIVER-BINARY-LICENSE.txt).
 
 The driver's demo allowance is shared across applications of that edition and
