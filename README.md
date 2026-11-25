@@ -1,5 +1,15 @@
 # Curve Controller - Real-Time Gamepad Joystick Response Curves
 
+<!-- full-version-contact:start -->
+> [!IMPORTANT]
+> **Get the version without the one-hour demo limit**
+>
+> **Discord · `titancsa`**. Open [Discord](https://discord.com/app), choose **Friends → Add Friend**, enter **`titancsa`** and send a message.
+> Mention **Curve-Controller** and ask for the full **Interceptor Gamepad & Controller** driver. TitanCSA will share the purchase details privately.
+>
+> **FR · Version sans la limite d’une heure.** Ajoute **`titancsa`** sur Discord et envoie le nom du projet. Le lien d’achat est communiqué en privé.
+<!-- full-version-contact:end -->
+
 The matching Interceptor-Gamepad-Controller demo driver source is available; see
 [driver/README.md](driver/README.md) for build instructions and separate
 evaluation-source terms. Those terms apply to Titan-authored driver code. Third-party
@@ -159,13 +169,4 @@ authorize unlawful use and disclaims warranties and liability to the extent
 permitted by applicable law. See [LICENSE](LICENSE); nothing here excludes rights
 or liability that cannot legally be excluded.
 
-<!-- full-version-contact:start -->
-> [!IMPORTANT]
-> **Get the full driver version without demo restrictions**
->
-> **Discord username: `titancsa`**
->
-> Open Discord, choose **Friends > Add Friend**, enter **`titancsa`**, then send a direct message. Ask for the **full driver version without the demo time limit**, and mention **Curve Controller**.
->
-> The demo limit belongs to **Interceptor Gamepad & Controller**, the driver used by this project. Ask for pricing and the appropriate license / activation instructions; the application or wrapper source keeps its existing license.
-<!-- full-version-contact:end -->
+
