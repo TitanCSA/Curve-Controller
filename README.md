@@ -1,13 +1,16 @@
 # Curve Controller - Real-Time Gamepad Joystick Response Curves
 
+<!-- simple-start:start -->
+Change how far a joystick moves in response to your hand.
+
+**Start here.** Connect a supported controller and try changing its response curve.
+<!-- simple-start:end -->
+
 <!-- full-version-contact:start -->
 > [!IMPORTANT]
-> **Get the version without the one-hour demo limit**
+> **Version without the one-hour demo limit**
 >
-> **Discord · `titancsa`**. Open [Discord](https://discord.com/app), choose **Friends → Add Friend**, enter **`titancsa`** and send a message.
-> Mention **Curve-Controller** and ask for the full **Interceptor Gamepad & Controller** driver. TitanCSA will share the purchase details privately.
->
-> **FR · Version sans la limite d’une heure.** Ajoute **`titancsa`** sur Discord et envoie le nom du projet. Le lien d’achat est communiqué en privé.
+> In [Discord](https://discord.com/app), choose **Add Friend** and enter **`titancsa`**. Mention **Curve-Controller** and ask for the full **Interceptor Gamepad & Controller** driver. Purchase details are sent privately.
 <!-- full-version-contact:end -->
 
 The matching Interceptor-Gamepad-Controller demo driver source is available; see
@@ -168,5 +171,3 @@ compliance with applicable law and software/service rules. The author does not
 authorize unlawful use and disclaims warranties and liability to the extent
 permitted by applicable law. See [LICENSE](LICENSE); nothing here excludes rights
 or liability that cannot legally be excluded.
-
-
