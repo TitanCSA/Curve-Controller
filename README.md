@@ -3,7 +3,11 @@
 <!-- simple-start:start -->
 Change how far a joystick moves in response to your hand.
 
-**Start here.** Connect a supported controller and try changing its response curve.
+[First steps](#first-steps) · [Develop](https://github.com/TitanCSA/Curve-Controller/tree/main) · [Maintain](https://github.com/TitanCSA/sdk-packages/blob/main/CONTRIBUTING.md)
+
+## First steps
+
+Connect a supported controller and try changing its response curve.
 <!-- simple-start:end -->
 
 <!-- full-version-contact:start -->
